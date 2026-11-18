@@ -32,7 +32,9 @@ import {
 } from './lib/legacy-migration-core.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const SRC_HTML = path.join(ROOT, 'index.html');
+// 读归档的原版单体：仓库根的 index.html 现在是 tools/split.mjs 生成的骨架，
+// 里面没有 CHARACTER_DATA / ENKA_ID_MAP / aliasMap 这些字面量。
+const SRC_HTML = path.join(ROOT, 'legacy', 'index.v0.html');
 
 // ── 参数 ───────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);

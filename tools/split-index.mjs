@@ -18,7 +18,8 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const SRC_HTML = path.join(ROOT, 'index.html');
+// 输入是归档的原版单体：仓库根 index.html 已由 tools/split.mjs 接管为骨架。
+  const SRC_HTML = path.join(ROOT, 'legacy', 'index.v0.html');
 const args = process.argv.slice(2);
 const outIdx = args.indexOf('--out');
 const OUT_ROOT = outIdx >= 0 ? path.resolve(args[outIdx + 1]) : path.join(ROOT, 'build');

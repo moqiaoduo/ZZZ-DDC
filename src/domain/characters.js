@@ -1,0 +1,7 @@
+// 角色查找。数据通过参数注入，因此不绑定任何一份数据源。
+
+import { CHARACTER_DATA } from '../data/characters.js';
+
+export function findCharacterByImportedName(name) { let found = CHARACTER_DATA.find(f => f.roles.some(r => r.name === name)); if (found) return found.roles.find(r => r.name === name); const aliasMap = { "艾莲":"艾莲·乔", "莱卡恩":"冯·莱卡恩", "爱丽丝":"爱丽丝·泰姆菲尔德", "伊德海莉":"伊德海莉·墨菲", "真斗":"狛野真斗", "派派":"派派·韦尔", "柏妮思":"柏妮思·怀特", "凯撒":"凯撒·金", "赛斯":"赛斯·洛威尔", "安比":"安比·德玛拉", "妮可":"妮可·德玛拉", "比利":"比利·奇德", "星徽·比利":"星徽·比利", "露西":"露西", "莱特":"莱特", "本":"本·比格", "安东":"安东·伊万诺夫", "格莉丝":"格莉丝·霍华德", "珂蕾妲":"珂蕾妲·贝洛伯格", "苍角":"苍角", "可琳":"可琳·威克斯", "青衣":"青衣", "朱鸢":"朱鸢", "简":"简·杜", "波可娜":"波可娜", "伊芙琳":"伊芙琳·舒瓦利耶", "耀嘉音":"耀嘉音", "11号":"11号", "扳机":"扳机", "席德":"席德", "奥菲丝":"奥菲丝&鬼火", "零号·安比":"零号·安比", "雨果":"雨果·维拉德", "薇薇安":"薇薇安·班希", "照":"照", "普罗米娅":"普罗米娅", "琉音":"琉音", "般岳":"般岳", "南宫羽":"南宫羽", "千夏":"千夏", "爱芮":"爱芮", "叶瞬光":"叶瞬光", "橘福福":"橘福福", "仪玄":"仪玄", "潘引壶":"潘引壶", "卢西娅":"卢西娅", "柚叶":"浮波柚叶", "维琳娜":"维琳娜·艾嘉德", "诺姆":"诺姆·霍洛维尔", "蕾米埃尔":"蕾米埃尔", "希希芙":"希希芙", "佩洛伊斯":"佩洛伊斯", "希格莉德":"希格莉德" }; if (aliasMap[name]) { found = CHARACTER_DATA.find(f => f.roles.some(r => r.name === aliasMap[name])); if (found) return found.roles.find(r => r.name === aliasMap[name]); } for (const f of CHARACTER_DATA) { for (const r of f.roles) { if (r.name.includes(name)) return r; } } for (const f of CHARACTER_DATA) { for (const r of f.roles) { if (name.includes(r.name)) return r; } } return null; }
+
+export function findCharacterInData(name) { for (const f of CHARACTER_DATA) { for (const r of f.roles) { if (r.name === name) return r; } } return null; }

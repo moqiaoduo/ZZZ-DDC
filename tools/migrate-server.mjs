@@ -36,7 +36,9 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
 
 function parseArgs(argv) {
-  const out = { port: 8788, html: path.join(ROOT, 'index.html') };
+  // 角色表只存在于归档的原版单体里。仓库根的 index.html 已经是 split.mjs
+  // 生成的骨架，抠不出 CHARACTER_DATA / ENKA_ID_MAP / aliasMap。
+  const out = { port: 8788, html: path.join(ROOT, 'legacy', 'index.v0.html') };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--port') out.port = Number(argv[++i]);
     else if (argv[i] === '--html') out.html = path.resolve(argv[++i]);
@@ -47,7 +49,7 @@ function parseArgs(argv) {
 
 const args = parseArgs(process.argv.slice(2));
 if (args.help) {
-  console.log(`用法：node tools/migrate-server.mjs [--port 8788] [--html index.html]`);
+  console.log(`用法：node tools/migrate-server.mjs [--port 8788] [--html legacy/index.v0.html]`);
   process.exit(0);
 }
 
@@ -143,7 +145,7 @@ const PAGE = `<!DOCTYPE html>
 <body>
 <div class="wrap">
   <h1>旧站存档迁移</h1>
-  <div class="sub">本地处理，文件不离开这台电脑。角色表已从 index.html 加载（${ROLE_COUNT} 个角色）。</div>
+  <div class="sub">本地处理，文件不离开这台电脑。角色表已从归档单体加载（${ROLE_COUNT} 个角色）。</div>
 
   <div class="card">
     <h2>准备工作</h2>

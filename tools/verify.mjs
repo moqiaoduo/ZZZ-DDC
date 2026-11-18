@@ -22,7 +22,11 @@ import { pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const BUILD = path.join(ROOT, 'build');
-const SRC_HTML = path.join(ROOT, 'index.html');
+// 基准是归档的原版单体。仓库根 index.html 现在是 split.mjs 生成的骨架，
+  // 里面没有 CHARACTER_DATA / calculateCoreGame 这些字面量，抠不出来。
+  // 本工具守的是「整段搬运没丢东西」，属于 Phase 1 的安全网；
+  // 分层产物的行为等价由 tools/golden.mjs 守（数值快照，不依赖源码文本）。
+  const SRC_HTML = path.join(ROOT, 'legacy', 'index.v0.html');
 
 const args = process.argv.slice(2);
 const sIdx = args.indexOf('--samples');

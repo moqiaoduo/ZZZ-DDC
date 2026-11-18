@@ -86,9 +86,10 @@ console.log('A. 仓库根（默认 --root）');
         (mjs.headers.get('content-type') || '').startsWith('text/javascript'),
         '实际 ' + mjs.headers.get('content-type'));
 
-      const png = await fetch(base + '/' + encodeURIComponent('计算器图标.jpg'));
-      check('带中文+空格的图片能取到', png.status === 200 && png.headers.get('content-type') === 'image/jpeg',
+      const png = await fetch(base + '/assets/site/logo.jpg');
+      check('改名后的图片能取到', png.status === 200 && png.headers.get('content-type') === 'image/jpeg',
         '实际 ' + png.status + ' ' + png.headers.get('content-type'));
+
 
       const miss = await fetch(base + '/definitely-not-here');
       check('不存在的路径返回 404', miss.status === 404);
@@ -149,13 +150,13 @@ console.log('\nB. 越界防护');
   } finally { stopServer(srv); }
 }
 
-/* ── C. --root build（自包含产物） ────────────────────────────────── */
+/* ── C. --root dist（自包含产物） ───────────────────────────────── */
 
 console.log('\nC. --root 指向子目录（自包含产物）');
 {
-  const buildDir = path.join(ROOT, 'build');
+  const buildDir = path.join(ROOT, 'dist');
   if (!fs.existsSync(path.join(buildDir, 'index.html'))) {
-    check('build/ 存在（先跑 tools/split-index.mjs）', false, 'build/index.html 不存在');
+    check('dist/ 存在（先跑 tools/build.mjs）', false, 'dist/index.html 不存在');
   } else {
     // 产物必须自包含：图片是拷进来的真文件，不是指向仓库根的软链。
     // 软链在 zip / rsync / 对象存储上传 / Pages 部署里都可能不被跟随。
@@ -167,26 +168,26 @@ console.log('\nC. --root 指向子目录（自包含产物）');
         else if (e.isDirectory()) walk(p);
       }
     })(buildDir);
-    check('build/ 下没有符号链接', links.length === 0, '发现 ' + links.slice(0, 3).join(', '));
+    check('dist/ 下没有符号链接', links.length === 0, '发现 ' + links.slice(0, 3).join(', '));
 
     const { srv, base, up } = await startServer(['--root', buildDir, '--no-reload'], 8904);
     try {
       check('服务能起来', up);
       if (up) {
         const r = await fetch(base + '/');
-        check('build 首页 200', r.status === 200);
+        check('dist 首页 200', r.status === 200);
 
         const js = await fetch(base + '/src/main.js');
-        check('src/main.js 的 MIME 正确',
+        check('main.js 的 MIME 正确',
           (js.headers.get('content-type') || '').startsWith('text/javascript'),
           '实际 ' + js.headers.get('content-type'));
 
-        const json = await fetch(base + '/src/data/characters.json');
-        check('JSON 的 MIME 正确',
-          (json.headers.get('content-type') || '').startsWith('application/json'),
+        const json = await fetch(base + '/src/data/characters.js');
+        check('data 模块的 MIME 正确',
+          (json.headers.get('content-type') || '').startsWith('text/javascript'),
           '实际 ' + json.headers.get('content-type'));
 
-        const png = await fetch(base + '/' + encodeURIComponent('计算器图标.jpg'));
+        const png = await fetch(base + '/assets/site/logo.jpg');
         const buf = Buffer.from(await png.arrayBuffer());
         check('图片能取到且非空', png.status === 200 && buf.length > 1000,
           '实际 ' + png.status + ' / ' + buf.length + ' 字节');

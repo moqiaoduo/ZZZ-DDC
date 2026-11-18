@@ -1,0 +1,3 @@
+// 结果区渲染。
+
+export function showResult(r, mode) { document.getElementById('res-a').style.display = 'block'; document.getElementById('res-b').style.display = 'block'; document.getElementById('res-random').style.display = 'block'; document.getElementById('res-a').textContent = `初始四词条驱动盘强化后练度提升概率：${(r.mchanceA*100).toFixed(15)}%`; document.getElementById('res-b').textContent = `初始三词条驱动盘强化后练度提升概率：${(r.mchanceB*100).toFixed(15)}%`; document.getElementById('res-random').textContent = mode === 'simple' ? `随机抽取综合练度提升概率：${(r.scaledChance*100).toFixed(15)}%` : `乘以缩放系数后提升率：${(r.scaledChance*100).toFixed(15)}%`; document.getElementById('result-area').style.display = 'block'; document.getElementById('recommend-area').innerHTML = ''; }

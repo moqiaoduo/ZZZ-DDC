@@ -16,7 +16,7 @@ export function extractConstSource(source, name) {
 
 function extractByRe(source, re, name) {
   const m = re.exec(source);
-  if (!m) throw new Error('index.html 里找不到常量 ' + name);
+  if (!m) throw new Error('源文件里找不到常量 ' + name);
 
   let i = m.index + m[0].length;
   let depth = 0;
@@ -57,7 +57,7 @@ function evalExpr(src, label) {
 }
 
 /**
- * 读 index.html 并返回三张表。
+ * 读单体 HTML（通常是 legacy/index.v0.html）并返回三张表。
  * @param {string} htmlPath
  */
 export function loadRoleTablesFromHtml(htmlPath) {
@@ -69,7 +69,7 @@ export function loadRoleTablesFromHtml(htmlPath) {
   // aliasMap 是 findCharacterByImportedName 内部的局部常量，不是顶层 const，
   // 所以单独用一次正则抓 —— 它的结构简单（扁平的字符串到字符串映射）。
   const aliasMatch = /const\s+aliasMap\s*=\s*(\{[\s\S]*?\});/.exec(html);
-  if (!aliasMatch) throw new Error('index.html 里找不到 aliasMap');
+  if (!aliasMatch) throw new Error('源文件里找不到 aliasMap');
   const ALIAS_MAP = evalExpr(aliasMatch[1], 'aliasMap');
 
   return { CHARACTER_DATA, ENKA_ID_MAP, ALIAS_MAP };
