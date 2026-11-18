@@ -441,6 +441,30 @@ check('characters.json 含 59 个角色且每个 weights 长度为 10', () => {
   if (bad.length) throw new Error(`weights 长度异常：${bad.map(r => r.name).join(', ')}`);
 });
 
+check('产物自包含：build/ 下无符号链接，图片是逐字节拷贝的真文件', () => {
+  const links = [];
+  (function walk(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isSymbolicLink()) links.push(path.relative(BUILD, p));
+      else if (e.isDirectory()) walk(p);
+    }
+  })(BUILD);
+  if (links.length) throw new Error(`build/ 下存在符号链接：${links.slice(0, 5).join(', ')}`);
+
+  // 图片必须与源文件逐字节相同：拷贝而不是软链，且没拷错/拷漏。
+  const ASSET_EXT = /\.(png|jpe?g|gif|svg|webp|ico)$/i;
+  const assets = fs.readdirSync(ROOT).filter(f => ASSET_EXT.test(f));
+  const missing = [], differ = [];
+  for (const f of assets) {
+    const dst = path.join(BUILD, f);
+    if (!fs.existsSync(dst)) { missing.push(f); continue; }
+    if (!fs.readFileSync(dst).equals(fs.readFileSync(path.join(ROOT, f)))) differ.push(f);
+  }
+  if (missing.length) throw new Error(`build/ 缺图片：${missing.slice(0, 5).join(', ')}`);
+  if (differ.length) throw new Error(`build/ 图片与源文件不一致：${differ.slice(0, 5).join(', ')}`);
+});
+
 // ─────────────────────────────────────────────────────────────
 // D. HTML 骨架结构等价
 // ─────────────────────────────────────────────────────────────

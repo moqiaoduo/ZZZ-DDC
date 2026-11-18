@@ -149,14 +149,26 @@ console.log('\nB. 越界防护');
   } finally { stopServer(srv); }
 }
 
-/* ── C. --root build 与符号链接 ──────────────────────────────────── */
+/* ── C. --root build（自包含产物） ────────────────────────────────── */
 
-console.log('\nC. --root 指向子目录 + 符号链接');
+console.log('\nC. --root 指向子目录（自包含产物）');
 {
   const buildDir = path.join(ROOT, 'build');
   if (!fs.existsSync(path.join(buildDir, 'index.html'))) {
     check('build/ 存在（先跑 tools/split-index.mjs）', false, 'build/index.html 不存在');
   } else {
+    // 产物必须自包含：图片是拷进来的真文件，不是指向仓库根的软链。
+    // 软链在 zip / rsync / 对象存储上传 / Pages 部署里都可能不被跟随。
+    const links = [];
+    (function walk(dir) {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name);
+        if (e.isSymbolicLink()) links.push(path.relative(buildDir, p));
+        else if (e.isDirectory()) walk(p);
+      }
+    })(buildDir);
+    check('build/ 下没有符号链接', links.length === 0, '发现 ' + links.slice(0, 3).join(', '));
+
     const { srv, base, up } = await startServer(['--root', buildDir, '--no-reload'], 8904);
     try {
       check('服务能起来', up);
@@ -174,10 +186,9 @@ console.log('\nC. --root 指向子目录 + 符号链接');
           (json.headers.get('content-type') || '').startsWith('application/json'),
           '实际 ' + json.headers.get('content-type'));
 
-        // build/ 里的图片是软链，指向仓库根。必须能取到，且内容非空。
         const png = await fetch(base + '/' + encodeURIComponent('计算器图标.jpg'));
         const buf = Buffer.from(await png.arrayBuffer());
-        check('符号链接图片能取到且非空', png.status === 200 && buf.length > 1000,
+        check('图片能取到且非空', png.status === 200 && buf.length > 1000,
           '实际 ' + png.status + ' / ' + buf.length + ' 字节');
 
         const dirNoIndex = await fetch(base + '/src/data');

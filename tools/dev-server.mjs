@@ -10,8 +10,8 @@
  *   1. .mjs / .js 的 MIME 必须正确，否则 <script type="module"> 直接不执行；
  *   2. 开发时要保证「改了刷新就能看到」，python 的 http.server 在某些版本上
  *      会带缓存头，改完看见旧的很难查；
- *   3. build/ 里的图片是符号链接（split-index.mjs 故意不复制 4MB 图片），
- *      需要一个会跟随软链、并且能限制在仓库内的静态服务。
+ *   3. build/ 是自包含产物（split-index.mjs 会拷贝图片），但它和仓库根
+ *      仍是两棵树，需要服务能限制在指定目录树内、越界 403。
  *
  * 自动刷新：往 HTML 响应末尾注入一小段脚本，监听 SSE /__reload，文件一变就让
  * 页面 location.reload()。注入只发生在 HTML，不影响 src/ 下的 js/css。
@@ -19,8 +19,8 @@
  * 做逐字节比对时要用 --no-reload。
  *
  * 安全边界：默认只监听 127.0.0.1（本机）。能读的范围限定在「--root 目录」和
- * 「仓库根」两棵树内（后者是软链目标所在），越界返回 403；.git/、node_modules/、
- * .dsh/ 一律不服务。
+ * 「仓库根」两棵树内（后者用于容纳你自己建的软链目标），越界返回 403；
+ * .git/、node_modules/、.dsh/ 一律不服务。
  *
  * 依赖：只用 node 内置模块。
  */
@@ -165,7 +165,9 @@ function resolveTarget(urlPath) {
     return { ok: false, status: 404, reason: '文件不存在' };
   }
 
-  // 跟随软链后的真实路径必须仍落在允许的树内（build/ 的图片链到仓库根）
+  // 跟随软链后的真实路径必须仍落在允许的树内。
+  // build/ 现在是自包含的（图片是拷贝），这条不再为它服务；留着是因为
+  // 用户完全可能在仓库里自己建软链，不能让它把 /etc/passwd 递出去。
   let real;
   try {
     real = fs.realpathSync(raw);

@@ -6,6 +6,7 @@
  *   1. 只做「搬运」，不做「重写」。所有被抽出的常量与函数源码逐字保留。
  *   2. 不修改原 index.html。产物写入 build/，人工比对后再决定是否替换。
  *   3. 每个产物都可被 tools/verify.mjs 验证与原文件逐位等价。
+ *   4. 产物自包含：图片是拷贝而不是软链，build/ 可以直接打包部署。
  *
  * 用法：
  *   node tools/split-index.mjs            # 拆分到 build/
@@ -283,17 +284,31 @@ const mainBody = [
 ].join('\n');
 fs.writeFileSync(mainPath, mainBody, 'utf8');
 
-// 4g. 静态资源（图片）链接到产物目录
+// 4g. 静态资源（图片）拷贝到产物目录
 //
-// 关键约束：拆分后的 index.html 仍以相对路径引用那 62 张图片与图标，
-// 因此产物必须与图片处于同一目录才能运行。这里用符号链接而非复制，
-// 避免 4MB 图片在仓库里出现两份副本（两份必然漂移）。
+// 为什么是拷贝而不是符号链接：产物必须自包含。软链在 zip、rsync、Docker
+// 打包、对象存储上传、GitHub Pages 部署里都可能不被跟随，到头来是一堆
+// 打不开的图；而且软链一旦被误当文件移回源目录，会覆盖它自己的目标
+// （实测 `mv link.png ./pic.png` 得到自引用链接，cat 报 Too many levels
+// of symbolic links），65 张图当场全废。
+//
+// 4MB 副本不进版本库：build/ 已在 .gitignore 里，它是生成物，随时可由
+// 本脚本重建。仓库里只有一份源图，不存在「两份漂移」的问题。
 const ASSET_EXT = /\.(png|jpe?g|gif|svg|webp|ico)$/i;
 const assets = fs.readdirSync(ROOT).filter(f => ASSET_EXT.test(f));
+let assetBytes = 0;
+const SAME_DIR = path.resolve(OUT_ROOT) === path.resolve(ROOT);
 for (const f of assets) {
-  const linkPath = path.join(OUT_ROOT, f);
-  try { fs.rmSync(linkPath, { force: true }); } catch {}
-  fs.symlinkSync(path.join(ROOT, f), linkPath);
+  const targetPath = path.join(OUT_ROOT, f);
+  const sourcePath = path.join(ROOT, f);
+  if (SAME_DIR) continue; // --out . 时源即目标，跳过以免截断自己
+  try {
+    // 先删掉旧产物（可能是上一版留下的软链——rmSync 删的是链接本身，不碰目标）
+    const st = fs.lstatSync(targetPath);
+    if (st.isSymbolicLink() || st.isFile()) fs.rmSync(targetPath, { force: true });
+  } catch { /* 不存在，正常 */ }
+  fs.copyFileSync(sourcePath, targetPath);
+  assetBytes += fs.statSync(targetPath).size;
 }
 
 function dedent(text) {
@@ -325,7 +340,7 @@ const summary = {
     { file: path.relative(ROOT, skeletonPath), 行数: skeleton.split('\n').length, 字节: fs.statSync(skeletonPath).size },
     { file: path.relative(ROOT, mainPath), 行数: mainBody.split('\n').length, 字节: fs.statSync(mainPath).size },
   ],
-  链接的静态资源: assets.length,
+  拷贝的静态资源: { 数量: assets.length, 字节: assetBytes },
   已剔除的死代码: report.dropped,
   未找到: report.missing,
 };
