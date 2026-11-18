@@ -120,6 +120,23 @@ check('原始 positions 未被改写',
 check('生成 apply-in-console.js', fs.existsSync(path.join(outDir, 'apply-in-console.js')));
 check('生成 report.md', fs.existsSync(path.join(outDir, 'report.md')));
 
+// 合并后汇总表那一行必须跟着涨，否则「成功搬运 N 条」会比实际少算。
+// 这是本地小工具页的预览直接读的字段，错了用户看到的总数就是错的。
+const reportMd = fs.readFileSync(path.join(outDir, 'report.md'), 'utf8');
+const reportLines = reportMd.split('\n');
+const banjiRow = reportLines.find(l => l.startsWith('| 扳机 |'));
+check('合并后的条数同步进汇总表', !!banjiRow && banjiRow.endsWith('| 2 |'), '实际 ' + banjiRow);
+
+// 表里各行之和必须等于标题里的总数，否则报告自相矛盾
+const tableCounts = reportLines
+  .filter(l => /^\| .+ \| \d+ \| .+ \| \d+ \|$/.test(l) && !l.includes('角色'))
+  .map(l => Number(l.split('|')[4].trim()));
+const sumCounts = tableCounts.reduce((a, b) => a + b, 0);
+const declaredTotal = Number((reportMd.match(/成功搬运：\*\*(\d+)\*\*/) || [])[1]);
+check('报告标题的总数等于表格各行之和',
+  declaredTotal === sumCounts && sumCounts === 5,
+  '标题 ' + declaredTotal + ' / 表格合计 ' + sumCounts + ' / 期望 5（艾莲2 + 扳机2 + 猫又1；杂条归不到 ID，已隔离）');
+
 console.log('\nC. 幂等与拒绝');
 const outDir2 = path.join(TMP, 'out2');
 execFileSync('node', [path.join(ROOT, 'tools', 'migrate-legacy-saves.mjs'), legacyPath, '--out', outDir2], { stdio: 'pipe' });
@@ -133,6 +150,79 @@ try {
   execFileSync('node', [path.join(ROOT, 'tools', 'migrate-legacy-saves.mjs'), bogusPath, '--out', path.join(TMP, 'out3')], { stdio: 'pipe' });
 } catch (err) { rejected = err.status === 1; }
 check('错格式文件被拒绝且退出码 1', rejected);
+
+// ── D. 本地小工具页（同一条链路，走 HTTP） ─────────────────────────────────
+// 命令行版和网页版共用 tools/lib/legacy-migration-core.mjs，但页面还多一层
+// 「服务端渲染 JSON + 客户端 fetch」。这层不测，就等于没测过页面。
+console.log('\nD. 本地小工具页');
+{
+  const { spawn } = await import('node:child_process');
+  const port = 8899;
+  const srv = spawn('node', [path.join(ROOT, 'tools', 'migrate-server.mjs'), '--port', String(port)], {
+    stdio: 'pipe',
+  });
+
+  const base = 'http://127.0.0.1:' + port;
+  const waitUp = async () => {
+    for (let i = 0; i < 60; i++) {
+      try {
+        const r = await fetch(base + '/');
+        if (r.ok) return true;
+      } catch { /* 还没起来 */ }
+      await new Promise(r => setTimeout(r, 100));
+    }
+    return false;
+  };
+
+  try {
+    const up = await waitUp();
+    check('服务能起来并响应 /', up);
+    if (up) {
+      const html = await (await fetch(base + '/')).text();
+      check('页面标题正确', html.includes('<title>旧站存档迁移'));
+      check('页面注入了角色数（59）', html.includes('59 个角色'));
+      check('页面不含未替换的模板插值', !html.includes('${'), '找到 ${ 说明转义漏了');
+
+      const legacyJson = JSON.parse(fs.readFileSync(legacyPath, 'utf8'));
+      const r = await fetch(base + '/api/migrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ legacy: legacyJson }),
+      });
+      const api = await r.json();
+      check('API 转换成功', r.status === 200 && api.ok === true);
+      check('API 结果与命令行一致',
+        JSON.stringify(api.payload.keys) === JSON.stringify(migrated.keys),
+        '两侧应该是同一份核心算出来的');
+      check('API 带回 applyScript', typeof api.applyScript === 'string' && api.applyScript.length > 100);
+      check('API 带回 reportMarkdown', typeof api.reportMarkdown === 'string' && api.reportMarkdown.includes('旧站存档迁移报告'));
+
+      const bad = await fetch(base + '/api/migrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ legacy: { format: 'nope' } }),
+      });
+      check('错格式 API 返回 400', bad.status === 400);
+
+      // 页面生成的回写脚本必须真能写进 localStorage，且二次执行是幂等的
+      const store = new Map();
+      const sandbox = {
+        localStorage: { setItem: (k, v) => store.set(k, String(v)) },
+        console: { log() {} },
+      };
+      vm.createContext(sandbox);
+      vm.runInContext(api.applyScript, sandbox);
+      const firstSize = store.size;
+      vm.runInContext(api.applyScript, sandbox);
+      check('页面生成的 apply 脚本可执行且幂等', firstSize > 0 && store.size === firstSize,
+        '首次 ' + firstSize + ' 个键，二次 ' + store.size + ' 个键');
+      check('apply 脚本写入的是新键名', [...store.keys()].every(k => k.startsWith('zzz.ddc.v2.')),
+        [...store.keys()].join(', '));
+    }
+  } finally {
+    srv.kill();
+  }
+}
 
 console.log('\n' + '─'.repeat(56));
 if (fail === 0) {
