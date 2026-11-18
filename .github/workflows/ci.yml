@@ -1,0 +1,72 @@
+name: CI
+
+# 触发条件刻意包含 pull_request：重构期的主要风险是「本地跑过、合并时才发现」，
+# 只在 push 时跑就少了一道门。workflow_dispatch 用于手动重跑。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# 同一分支连续推送时，取消还在跑的旧任务——旧提交的结论对新 HEAD 没有意义。
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# 这个 workflow 只读代码，不发布任何东西：上游站是 qfmyqqx 的 Pages，
+# 本 fork 不开 Pages（has_pages: false），所以这里不需要写权限。
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: 校验（node ${{ matrix.node }}）
+    runs-on: ubuntu-latest
+    strategy:
+      # 两个版本都跑完再报结论，否则只看到先挂的那个，误以为另一个没问题。
+      fail-fast: false
+      matrix:
+        # 22 是维护中的 LTS，24 是本地开发用的版本（见 .nvmrc 之外的事实：
+        # 本机 node v24.14.0）。两个都跑，是为了在「升 node 才炸」这类问题上
+        # 提前暴露，而不是等某天本地升级后才发现 CI 早就红了。
+        node: ['22', '24']
+    steps:
+      - name: 检出
+        uses: actions/checkout@v4
+
+      - name: 装 node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          # 刻意不配 cache：项目没有 package.json / lockfile，
+          # setup-node 的 cache 选项在这种情况下会直接报错。
+
+      - name: 打印环境
+        # 与失败排查相关的最小信息：node 版本决定 import.meta.dirname
+        # 之类 API 是否可用，平台决定 fs.watch 是否支持 recursive。
+        run: |
+          node -v
+          npm -v
+          uname -a
+
+      - name: 跑全套校验
+        # 本地与 CI 走的是同一个入口（tools/ci.mjs），清单只有一份。
+        # 不要在 workflow 里展开成多个 step——那会成为第二份会漂移的清单。
+        run: node tools/ci.mjs
+        env:
+          CI: 'true'
+
+      - name: 构建产物快照
+        # 构建成功不等于产物可用。这里把产物统计打出来，方便对照
+        # 本地 `node tools/build.mjs` 的结果，也留住「某次提交后文件数变了」的线索。
+        if: always()
+        run: |
+          if [ -d dist ]; then
+            echo "dist 文件数：$(find dist -type f | wc -l)"
+            echo "dist 体积：$(du -sh dist | cut -f1)"
+            echo "—— 符号链接（应为 0，产物必须自包含）——"
+            find dist -type l | head -20
+            echo "（以上为空即为 0 个）"
+          else
+            echo "dist/ 不存在（构建步骤可能已失败）"
+          fi
