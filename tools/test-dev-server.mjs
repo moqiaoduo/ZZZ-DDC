@@ -18,7 +18,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const TMP = path.join(ROOT, '.dsh', 'tmp', 'test-dev-server');
@@ -178,6 +178,16 @@ console.log('\nB. 越界防护');
 console.log('\nC. --root 指向子目录（自包含产物）');
 {
   const buildDir = path.join(ROOT, 'dist');
+  // dist/ 是 gitignore 的生成物，clone 下来第一次跑测试时还不存在。
+  // 与其让人先手动跑一次 build，不如这里自己补——测试要能一条命令跑起来。
+  if (!fs.existsSync(path.join(buildDir, 'index.html'))) {
+    try {
+      execFileSync(process.execPath, [path.join(ROOT, 'tools', 'build.mjs'), '--quiet'], { stdio: 'pipe' });
+      console.log('   （dist/ 不存在，已自动跑了一次 tools/build.mjs）');
+    } catch (e) {
+      check('dist/ 存在或能自动生成', false, String(e.stderr || e.message).slice(0, 200));
+    }
+  }
   if (!fs.existsSync(path.join(buildDir, 'index.html'))) {
     check('dist/ 存在（先跑 tools/build.mjs）', false, 'dist/index.html 不存在');
   } else {
@@ -318,7 +328,6 @@ console.log('\nF. 默认只监听本机');
   try {
     check('服务能起来', up);
     if (up) {
-      const { execFileSync } = await import('node:child_process');
       let lsof = '';
       try {
         lsof = execFileSync('lsof', ['-nP', '-iTCP:8909', '-sTCP:LISTEN'], { encoding: 'utf8' });
