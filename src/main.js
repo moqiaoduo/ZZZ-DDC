@@ -22,6 +22,7 @@ import {
   syncSaveSelects,
 } from './app/saves.js';
 import { state } from './app/store.js';
+import { assertData } from './data/validate.js';
 import { themes } from './data/themes.js';
 import {
   applyTheme,
@@ -47,7 +48,7 @@ document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', (
 
 document.addEventListener('change', function(e) { const target = e.target; if (target.classList.contains('char-save-select') || target.classList.contains('char-save-select-top') || target.classList.contains('char-save-select-bottom')) { const idx = parseInt(target.dataset.idx); if (!isNaN(idx)) syncSaveSelects(idx, target); } });
 
-window.onload = () => { initThemeSelector(); generateAdvancedEntries(); renderFactionTabs('game-faction-tabs'); renderCharacterGrid(0); applyTheme(themes[0]); }
+window.onload = () => { assertData(); initThemeSelector(); generateAdvancedEntries(); renderFactionTabs('game-faction-tabs'); renderCharacterGrid(0); applyTheme(themes[0]); }
 
 /**
  * 把内联处理器要用到的函数挂回 window。

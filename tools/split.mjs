@@ -237,7 +237,8 @@ const PROB_CONSTS = evalDecls(['Achance', 'Bchance', 'Atimes', 'Btimes']);
 const GLOBALS = ['gameSelectedChars', 'lastImportedChars', 'charConfigsCache', 'extractionList', 'settings'];
 
 /** 确认没有引用的死代码，不搬。 */
-const DEAD = ['LOC_ZH_TW', 'ENTRY_IDX_MAP', 'enkaIdToNameMap', 'loadEnkaMappings', 'numStr', 'suitId'];
+// findCharacterInData 已判定为死代码（src/ 内零调用），不搬。
+const DEAD = ['LOC_ZH_TW', 'ENTRY_IDX_MAP', 'enkaIdToNameMap', 'loadEnkaMappings', 'numStr', 'suitId', 'findCharacterInData'];
 
 /** 每个名字搬到哪个模块。漏掉任何一个都会在下面被 assert 拦住。 */
 const MAP = {
@@ -270,7 +271,6 @@ const MAP = {
   'hexToRgb': 'domain/format.js',
   'formatCost': 'domain/format.js',
   'findCharacterByImportedName': 'domain/characters.js',
-  'findCharacterInData': 'domain/characters.js',
 
   // app：状态与业务
   'saveSettings': 'app/store.js',

@@ -1,7 +1,28 @@
-// 角色查找。数据通过参数注入，因此不绑定任何一份数据源。
+// 角色查找。
+//
+// 只做精确匹配，三级依次尝试：全名 → 别名 → 反查别名。
+// 刻意不做子串匹配：旧实现用 `r.name.includes(name)` 与 `name.includes(r.name)` 兜底，
+// 会把「安比」匹配到「零号·安比」、「比利」匹配到「星徽·比利」，而「猫又」这类
+// 真需要的短名反倒匹配不上（`猫宫又奈` 不含「猫又」二字）。缺的短名一律补进别名表。
 
-import { CHARACTER_DATA } from '../data/characters.js';
+import { CHARACTER_ALIASES, CHARACTER_DATA } from '../data/characters.js';
 
-export function findCharacterByImportedName(name) { let found = CHARACTER_DATA.find(f => f.roles.some(r => r.name === name)); if (found) return found.roles.find(r => r.name === name); const aliasMap = { "艾莲":"艾莲·乔", "莱卡恩":"冯·莱卡恩", "爱丽丝":"爱丽丝·泰姆菲尔德", "伊德海莉":"伊德海莉·墨菲", "真斗":"狛野真斗", "派派":"派派·韦尔", "柏妮思":"柏妮思·怀特", "凯撒":"凯撒·金", "赛斯":"赛斯·洛威尔", "安比":"安比·德玛拉", "妮可":"妮可·德玛拉", "比利":"比利·奇德", "星徽·比利":"星徽·比利", "露西":"露西", "莱特":"莱特", "本":"本·比格", "安东":"安东·伊万诺夫", "格莉丝":"格莉丝·霍华德", "珂蕾妲":"珂蕾妲·贝洛伯格", "苍角":"苍角", "可琳":"可琳·威克斯", "青衣":"青衣", "朱鸢":"朱鸢", "简":"简·杜", "波可娜":"波可娜", "伊芙琳":"伊芙琳·舒瓦利耶", "耀嘉音":"耀嘉音", "11号":"11号", "扳机":"扳机", "席德":"席德", "奥菲丝":"奥菲丝&鬼火", "零号·安比":"零号·安比", "雨果":"雨果·维拉德", "薇薇安":"薇薇安·班希", "照":"照", "普罗米娅":"普罗米娅", "琉音":"琉音", "般岳":"般岳", "南宫羽":"南宫羽", "千夏":"千夏", "爱芮":"爱芮", "叶瞬光":"叶瞬光", "橘福福":"橘福福", "仪玄":"仪玄", "潘引壶":"潘引壶", "卢西娅":"卢西娅", "柚叶":"浮波柚叶", "维琳娜":"维琳娜·艾嘉德", "诺姆":"诺姆·霍洛维尔", "蕾米埃尔":"蕾米埃尔", "希希芙":"希希芙", "佩洛伊斯":"佩洛伊斯", "希格莉德":"希格莉德" }; if (aliasMap[name]) { found = CHARACTER_DATA.find(f => f.roles.some(r => r.name === aliasMap[name])); if (found) return found.roles.find(r => r.name === aliasMap[name]); } for (const f of CHARACTER_DATA) { for (const r of f.roles) { if (r.name.includes(name)) return r; } } for (const f of CHARACTER_DATA) { for (const r of f.roles) { if (name.includes(r.name)) return r; } } return null; }
+/** 全名 → 角色对象。数据无重名，59 条一一对应。 */
+const BY_NAME = new Map();
+/** 别名 → 全名。 */
+const ALIAS_TO_NAME = new Map(Object.entries(CHARACTER_ALIASES));
+for (const faction of CHARACTER_DATA) {
+  for (const role of faction.roles) BY_NAME.set(role.name, role);
+}
 
-export function findCharacterInData(name) { for (const f of CHARACTER_DATA) { for (const r of f.roles) { if (r.name === name) return r; } } return null; }
+/**
+ * 按导入数据里的角色名查角色。
+ *
+ * @param {string} name Enka 的短名，或角色全名。
+ * @returns {object|null} 角色对象；查不到返回 null（不猜）。
+ */
+export function findCharacterByImportedName(name) {
+  const raw = typeof name === 'string' ? name.replace(/^[「『]+|[」』]+$/g, '').trim() : '';
+  if (!raw) return null;
+  return BY_NAME.get(raw) ?? BY_NAME.get(ALIAS_TO_NAME.get(raw)) ?? null;
+}

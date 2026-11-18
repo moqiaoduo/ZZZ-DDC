@@ -42,6 +42,7 @@ const IS_CI = process.env.CI === 'true' || process.env.CI === '1';
 const STEPS = [
   { name: 'check-imports', file: 'tools/check-imports.mjs', what: '模块图连通性' },
   { name: 'check-assets', file: 'tools/check-assets.mjs', what: '资源引用与死资源' },
+  { name: 'test-characters', file: 'tools/test-characters.mjs', what: '角色查找与数据自检' },
   { name: 'golden', file: 'tools/golden.mjs', what: '算法数值快照' },
   { name: 'build', file: 'tools/build.mjs', what: '产物可构建且自包含', args: ['--quiet'] },
   { name: 'test-probability', file: 'tools/test-probability.mjs', what: '概率引擎对独立真值' },
