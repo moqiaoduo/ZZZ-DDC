@@ -7,10 +7,8 @@
 
 # 工具生成物：由工具重新生成，不入库
 #
-# build/  tools/split-index.mjs 的旧产物（整段搬运版，保留给 verify.mjs 做文本比对）
-# dist/  tools/build.mjs 的产物（分层版的部署形态）
+# dist/ 是 node tools/build.mjs 的产物（可部署形态）。
 #
-# 注意 src/ 不在此列——它是 tools/split.mjs 生成的，但属于要入库的源码：
-# 改逻辑应当改 src/，index.html 只是尚未退役的旧入口。
-build/
+# 注意 src/ 不在此列——它虽然由 tools/split.mjs 一次性生成，但生成之后就
+# 是要入库的源码：之后的改动直接改 src/，不再重跑迁移工具。
 dist/

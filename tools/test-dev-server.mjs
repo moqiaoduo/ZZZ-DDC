@@ -10,6 +10,11 @@
  *   - 路径穿越到仓库外，或软链把 /etc/passwd 递出去；
  *   - 端口占用时启动逻辑崩掉或监听在不该监听的地址上。
  * 这几条都真起服务来验，不靠读代码推断。
+ *
+ * 端口纪律：每个用例都必须落在它预期的端口上。dev-server 自己会在端口被占时
+ * 自动后移（这是它的功能），但测试若也被带着后移，就会「对着另一个服务做断言」
+ * ——连上了、状态码对、内容却来自别的根目录，失败信息还指向被删的文件。
+ * 所以启动前先确认真空闲，占着就直接报错，不静默换端口。
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -29,7 +34,25 @@ function check(name, cond, detail) {
 
 /* ── 起服务的工具 ─────────────────────────────────────────────────── */
 
-async function startServer(args, port) {
+/** 端口是否已被占用。探测用 127.0.0.1，与服务默认监听地址一致。 */
+async function portBusy(port) {
+  try {
+    await fetch('http://127.0.0.1:' + port + '/', { signal: AbortSignal.timeout(500) });
+    return true;               // 有响应，说明有人在那
+  } catch (e) {
+    // ECONNREFUSED 才是「空」；超时/其他错误说明有东西在但不响应，也当作占用
+    return e.name !== 'TypeError' && !/ECONNREFUSED|fetch failed/i.test(String(e.cause?.code || e.message));
+  }
+}
+
+/**
+ * @param opts.allowBusy 端口本来就该被占（E 段测的就是「占用后自动后移」），跳过探测。
+ */
+async function startServer(args, port, opts = {}) {
+  if (!opts.allowBusy && await portBusy(port)) {
+    throw new Error(`端口 ${port} 已被占用。测试要求每个用例落在固定端口上，` +
+      `请先腾出来（lsof -ti tcp:${port} | xargs kill），否则会对着别的服务做断言。`);
+  }
   const srv = spawn('node', [path.join(ROOT, 'tools', 'dev-server.mjs'), '--port', String(port), '--quiet', ...args], {
     stdio: 'pipe',
   });
@@ -268,7 +291,8 @@ console.log('\nE. 端口占用时自动后移');
   try {
     check('第一个实例起来', first.up);
     if (first.up) {
-      const second = await startServer(['--root', TMP, '--no-reload'], 8907);
+      // 这个用例的意图就是「端口被占 → 自动后移到 8908」，不能要求端口空闲。
+      const second = await startServer(['--root', TMP, '--no-reload'], 8907, { allowBusy: true });
       try {
         check('第二个实例在下一个端口起来', second.up);
         if (second.up) {

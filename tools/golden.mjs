@@ -2,10 +2,10 @@
 /**
  * 领域层行为的黄金快照（golden snapshot）。
  *
- * 为什么需要它：重构要动代码，就得有「行为没变」的证据。原先的证据是
- * tools/verify.mjs 的「main.js 逐字包含原脚本」——那只在「只搬运不改写」
- * 时成立，一旦真的分层就没法用了。快照把证据从「文本相同」换成「数值相同」，
- * 这个证据在重构之后依然成立。
+ * 为什么需要它：重构要动代码，就得有「行为没变」的证据。文本层面的证据
+ * （「搬过去的代码与原文逐字相同」）只在「只搬运不改写」时成立，一旦真的
+ * 分层就没法用了。快照把证据从「文本相同」换成「数值相同」，这个证据在
+ * 重构之后依然成立，也是后续改算法的回归基线。
  *
  * 覆盖范围只包含「会长期存在」的东西：4 个概率常量 + parseNumber / dfsUp /
  * passChance / calculateCoreGame。calculateCore 与 firstGroup 在口径定案后
@@ -83,10 +83,10 @@ async function loadImpl(from) {
   return loadFromModule(abs);
 }
 
-/** 默认来源：src/ 已建立就用它，否则退回单体 index.html。 */
+/** 默认来源：src/ 已建立就用它，否则退回归档的单体版 legacy/index.v0.html。 */
 function defaultFrom() {
   const mod = path.join(ROOT, 'src', 'domain', 'probability.js');
-  return fs.existsSync(mod) ? 'src/domain/probability.js' : 'index.html';
+  return fs.existsSync(mod) ? 'src/domain/probability.js' : 'legacy/index.v0.html';
 }
 
 // ── 用例 ──────────────────────────────────────────────────────────────

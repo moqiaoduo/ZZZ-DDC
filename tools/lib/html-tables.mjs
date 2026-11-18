@@ -3,7 +3,7 @@
  *
  * 为什么不用正则整段匹配：这三个字面量里有字符串、模板串、注释，
  * 简单的 `/\{[\s\S]*?\}/` 会在第一个 `}` 就停。这里用一个小的状态机配平括号，
- * 与 tools/split-index.mjs 的 extractDeclaration 同源。
+ * 与 tools/split.mjs 里的切分器同源（都是配平括号的状态机）。
  *
  * 只在 Node 侧用（需要 fs），所以不放进 legacy-migration-core.mjs。
  */

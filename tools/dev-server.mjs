@@ -3,15 +3,15 @@
  * 本地开发服务。
  *
  *   node tools/dev-server.mjs                 # 服务仓库根，http://127.0.0.1:5173
- *   node tools/dev-server.mjs --root build    # 服务 tools/split-index.mjs 的产物
+ *   node tools/dev-server.mjs --root dist     # 服务 node tools/build.mjs 的产物
  *   node tools/dev-server.mjs --port 9000 --no-reload
  *
  * 为什么不用 python3 -m http.server：
  *   1. .mjs / .js 的 MIME 必须正确，否则 <script type="module"> 直接不执行；
  *   2. 开发时要保证「改了刷新就能看到」，python 的 http.server 在某些版本上
  *      会带缓存头，改完看见旧的很难查；
- *   3. build/ 是自包含产物（split-index.mjs 会拷贝图片），但它和仓库根
- *      仍是两棵树，需要服务能限制在指定目录树内、越界 403。
+ *   3. dist/ 是自包含产物（build.mjs 会拷图片），但它和仓库根仍是两棵树，
+ *      需要服务能限制在指定目录树内、越界 403。
  *
  * 自动刷新：往 HTML 响应末尾注入一小段脚本，监听 SSE /__reload，文件一变就让
  * 页面 location.reload()。注入只发生在 HTML，不影响 src/ 下的 js/css。
@@ -70,7 +70,7 @@ if (args.help) {
 
   --port <n>      端口，默认 5173（被占用时自动往后找，vite 也是这个习惯）
   --host <addr>   监听地址，默认 127.0.0.1（只本机）
-  --root <dir>    服务哪个目录，默认仓库根；看拆分产物用 --root build
+  --root <dir>    服务哪个目录，默认仓库根；看构建产物用 --root dist
   --no-reload     关闭自动刷新（注入脚本会让 HTML 与磁盘不完全一致）
   --open          起来后用系统浏览器打开
   --quiet, -q     不打印每条请求`);
@@ -111,7 +111,7 @@ const DENY_SEGMENTS = new Set(['.git', 'node_modules', '.dsh']);
 
 if (!fs.existsSync(args.root) || !fs.statSync(args.root).isDirectory()) {
   console.error(`根目录不存在或不是目录：${args.root}`);
-  console.error('提示：看拆分产物要加 --root build，且得先跑过 node tools/split-index.mjs');
+  console.error('提示：看构建产物要加 --root dist，且得先跑过 node tools/build.mjs');
   process.exit(1);
 }
 
@@ -399,7 +399,7 @@ function listen(port, triesLeft) {
     if (args.root !== REPO_ROOT) {
       console.log(`  提示：正在服务 ${path.relative(REPO_ROOT, args.root) || '.'}/，不是仓库根的 index.html。`);
     } else {
-      console.log('  提示：看 tools/split-index.mjs 的拆分产物，加 --root build');
+      console.log('  提示：看构建产物加 --root dist（先跑 node tools/build.mjs）');
     }
     console.log('  停止：Ctrl+C');
     console.log('');
