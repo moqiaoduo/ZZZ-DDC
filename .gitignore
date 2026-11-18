@@ -1,0 +1,9 @@
+# macOS
+.DS_Store
+
+# 会话临时文件（dsh 约定：只忽略 tmp/ 与 plans/，不忽略整个 .dsh/）
+.dsh/tmp/
+.dsh/plans/
+
+# tools/split-index.mjs 的生成物：由工具重新生成，不入库
+build/
